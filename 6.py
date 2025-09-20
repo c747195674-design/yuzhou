@@ -425,38 +425,83 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
     
     st.subheader("📥 结果导出")
     col1, col2 = st.columns(2)
+    
+    # 准备详细分析结果数据
+    export_df = df.copy()
+    export_df['评估模式'] = "自定义模式" if custom_factors else "预设模式"
+    for i, col in enumerate(used_columns):
+        if col in export_df.columns:
+            export_df[f'{col}_权重'] = weights[i]
+    result_csv = export_df.to_csv(index=False).encode('utf-8-sig')
+    
+    # 准备权重配置数据
+    config_data = []
+    for i, col in enumerate(used_columns):
+        config_data.append({
+            '要素名称': col,
+            '权重': weights[i],
+            '权重百分比': f"{weights[i] * 100:.2f}%",
+            '相关性': correlation_settings.get(col, '正相关') if correlation_settings else '正相关',
+            '排放因子': custom_factors.get(col, {}).get('emission_factor', '系统默认') if custom_factors else '系统默认'
+        })
+    config_df = pd.DataFrame(config_data)
+    config_csv = config_df.to_csv(index=False).encode('utf-8-sig')
+    
     with col1:
-        if st.button("📊 下载详细分析结果"):
-            export_df = df.copy()
-            export_df['评估模式'] = "自定义模式" if custom_factors else "预设模式"
-            for i, col in enumerate(used_columns):
-                if col in export_df.columns:
-                    export_df[f'{col}_权重'] = weights[i]
-            result_csv = export_df.to_csv(index=False).encode('utf-8-sig')
-            st.download_button(
-                label="📥 下载CSV文件",
-                data=result_csv,
-                file_name=f"碳排放评估详细结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
+        st.download_button(
+            label="📊 下载详细分析结果",
+            data=result_csv,
+            file_name=f"碳排放评估详细结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            help="下载包含碳排放计算、权重信息的完整数据",
+            use_container_width=True
+        )
+    
     with col2:
-        if st.button("📋 下载权重配置"):
-            config_data = []
-            for i, col in enumerate(used_columns):
-                config_data.append({
-                    '要素名称': col,
-                    '权重': weights[i],
-                    '相关性': correlation_settings.get(col, '正相关') if correlation_settings else '正相关',
-                    '排放因子': custom_factors.get(col, {}).get('emission_factor', '系统默认') if custom_factors else '系统默认'
-                })
-            config_df = pd.DataFrame(config_data)
-            config_csv = config_df.to_csv(index=False).encode('utf-8-sig')
-            st.download_button(
-                label="📥 下载权重配置",
-                data=config_csv,
-                file_name=f"评估权重配置_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
+        st.download_button(
+            label="📋 下载权重配置",
+            data=config_csv,
+            file_name=f"评估权重配置_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            help="下载评估要素的权重配置信息",
+            use_container_width=True
+        )
+    
+    # 添加数据预览
+    with st.expander("🔍 导出数据预览"):
+        tab1, tab2 = st.tabs(["详细分析结果", "权重配置"])
+        
+        with tab1:
+            st.write("**详细分析结果数据预览:**")
+            preview_df = export_df.copy()
+            # 只显示前几列和重要的列
+            important_cols = ['process_name', 'carbon_emission', 'weighted_score', '评估模式']
+            if 'emission_intensity' in preview_df.columns:
+                important_cols.insert(2, 'emission_intensity')
+            
+            display_cols = important_cols + [col for col in preview_df.columns if col.endswith('_权重')]
+            st.dataframe(preview_df[display_cols].round(4), use_container_width=True)
+        
+        with tab2:
+            st.write("**权重配置数据预览:**")
+            st.dataframe(config_df, use_container_width=True)
+    
+    # 添加导出说明
+    st.info("""
+    **📋 导出文件说明:**
+    
+    **详细分析结果** 包含:
+    - 各流程的碳排放计算结果
+    - 排放强度数据 (如适用)
+    - 综合评分和权重信息
+    - 原始输入数据
+    
+    **权重配置** 包含:
+    - 各评估要素的权重值
+    - 权重百分比分布
+    - 要素相关性设置
+    - 排放因子配置
+    """)
 
 def main():
     st.set_page_config(page_title="企业碳排放评估系统", layout="wide")
