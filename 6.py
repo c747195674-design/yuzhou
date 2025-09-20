@@ -5,11 +5,42 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 import warnings
+import os
+from matplotlib.font_manager import FontProperties
 warnings.filterwarnings('ignore')
 
-# 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
-plt.rcParams['axes.unicode_minus'] = False
+# 字体设置函数
+def setup_chinese_font():
+    """设置中文字体"""
+    try:
+        # 尝试加载项目中的字体文件
+        font_path = 'simhei.ttf'  # 字体文件应该在项目根目录
+        
+        if os.path.exists(font_path):
+            # 使用自定义字体
+            chinese_font = FontProperties(fname=font_path)
+            plt.rcParams['font.family'] = chinese_font.get_name()
+            plt.rcParams['axes.unicode_minus'] = False
+            return chinese_font
+        else:
+            # 如果字体文件不存在，尝试系统字体
+            plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS', 'WenQuanYi Micro Hei']
+            plt.rcParams['axes.unicode_minus'] = False
+            return None
+    except Exception as e:
+        st.warning(f"字体加载失败，使用默认字体: {e}")
+        plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
+        plt.rcParams['axes.unicode_minus'] = False
+        return None
+
+# 获取中文字体属性
+def get_chinese_font_prop():
+    """获取中文字体属性用于matplotlib"""
+    font_path = 'simhei.ttf'
+    if os.path.exists(font_path):
+        return FontProperties(fname=font_path)
+    else:
+        return FontProperties()
 
 class CarbonEmissionAssessment:
     def __init__(self):
@@ -178,6 +209,10 @@ def manual_input_table_interface(assessment, assessment_mode, custom_columns=Non
 
 def display_results(df, weights, details_list, used_columns, assessment, custom_factors=None, correlation_settings=None):
     st.header("📊 分析结果")
+    
+    # 获取中文字体属性
+    font_prop = get_chinese_font_prop()
+    
     if 'production_volume' in df.columns:
         df['emission_intensity'] = df['carbon_emission'] / df['production_volume']
         result_columns = ['process_name', 'carbon_emission', 'emission_intensity', 'weighted_score']
@@ -189,6 +224,7 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
     result_df.columns = column_names
     result_df = result_df.sort_values('总碳排放(kg CO2)')
     st.dataframe(result_df.round(3))
+    
     st.subheader("⚖️ 熵权法计算权重")
     weights_data = []
     for i, col in enumerate(used_columns):
@@ -207,19 +243,27 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
         })
     weights_df = pd.DataFrame(weights_data)
     st.dataframe(weights_df)
+    
     st.subheader("📈 可视化分析")
     col1, col2 = st.columns(2)
+    
     with col1:
         fig, ax = plt.subplots(figsize=(10, 6))
         bars = ax.bar(df['process_name'], df['carbon_emission'], color=plt.cm.RdYlGn_r(np.linspace(0.2, 0.8, len(df))))
-        ax.set_title('各流程碳排放对比')
-        ax.set_ylabel('碳排放量 (kg CO2)')
+        ax.set_title('各流程碳排放对比', fontproperties=font_prop)
+        ax.set_ylabel('碳排放量 (kg CO2)', fontproperties=font_prop)
         ax.tick_params(axis='x', rotation=45)
+        # 设置x轴标签字体
+        for tick in ax.get_xticklabels():
+            tick.set_fontproperties(font_prop)
+        for tick in ax.get_yticklabels():
+            tick.set_fontproperties(font_prop)
         for bar in bars:
             height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.1f}', ha='center', va='bottom')
+            ax.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.1f}', ha='center', va='bottom', fontproperties=font_prop)
         plt.tight_layout()
         st.pyplot(fig)
+    
     with col2:
         fig, ax = plt.subplots(figsize=(8, 8))
         colors = plt.cm.Set3(np.linspace(0, 1, len(weights)))
@@ -230,31 +274,49 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
                 correlation_type = "+" if correlation_settings[col] == "positive" else "-"
             labels_with_correlation.append(f"{col}({correlation_type})")
         wedges, texts, autotexts = ax.pie(weights, labels=labels_with_correlation, autopct='%1.1f%%', startangle=90, colors=colors)
-        ax.set_title('熵权法 - 各指标权重分布\n(+正相关, -负相关)')
+        ax.set_title('熵权法 - 各指标权重分布\n(+正相关, -负相关)', fontproperties=font_prop)
+        # 设置饼图标签字体
+        for text in texts:
+            text.set_fontproperties(font_prop)
+        for autotext in autotexts:
+            autotext.set_fontproperties(font_prop)
         st.pyplot(fig)
+    
     if 'emission_intensity' in df.columns:
         st.subheader("📊 排放强度分析")
         fig, ax = plt.subplots(figsize=(12, 6))
         bars = ax.bar(df['process_name'], df['emission_intensity'], color=plt.cm.Blues(np.linspace(0.3, 0.8, len(df))))
-        ax.set_title('各流程碳排放强度对比')
-        ax.set_ylabel('排放强度 (kg CO2/单位产品)')
+        ax.set_title('各流程碳排放强度对比', fontproperties=font_prop)
+        ax.set_ylabel('排放强度 (kg CO2/单位产品)', fontproperties=font_prop)
         ax.tick_params(axis='x', rotation=45)
+        # 设置坐标轴标签字体
+        for tick in ax.get_xticklabels():
+            tick.set_fontproperties(font_prop)
+        for tick in ax.get_yticklabels():
+            tick.set_fontproperties(font_prop)
         for bar in bars:
             height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.3f}', ha='center', va='bottom')
+            ax.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.3f}', ha='center', va='bottom', fontproperties=font_prop)
         plt.tight_layout()
         st.pyplot(fig)
+    
     st.subheader("🎯 综合评分分析")
     fig, ax = plt.subplots(figsize=(12, 6))
     sorted_df = df.sort_values('weighted_score', ascending=True)
     bars = ax.barh(sorted_df['process_name'], sorted_df['weighted_score'], color=plt.cm.RdYlGn(np.linspace(0.2, 0.8, len(sorted_df))))
-    ax.set_title('各流程综合评分对比 (考虑权重和相关性)')
-    ax.set_xlabel('加权综合评分')
+    ax.set_title('各流程综合评分对比 (考虑权重和相关性)', fontproperties=font_prop)
+    ax.set_xlabel('加权综合评分', fontproperties=font_prop)
+    # 设置坐标轴标签字体
+    for tick in ax.get_xticklabels():
+        tick.set_fontproperties(font_prop)
+    for tick in ax.get_yticklabels():
+        tick.set_fontproperties(font_prop)
     for i, bar in enumerate(bars):
         width = bar.get_width()
-        ax.text(width, bar.get_y() + bar.get_height() / 2., f'{width:.3f}', ha='left' if width >= 0 else 'right', va='center')
+        ax.text(width, bar.get_y() + bar.get_height() / 2., f'{width:.3f}', ha='left' if width >= 0 else 'right', va='center', fontproperties=font_prop)
     plt.tight_layout()
     st.pyplot(fig)
+    
     if custom_factors and correlation_settings:
         st.subheader("🔍 要素相关性分析")
         factor_columns = [col for col in used_columns if col in df.columns]
@@ -262,8 +324,14 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
             corr_matrix = df[factor_columns].corr()
             fig, ax = plt.subplots(figsize=(10, 8))
             sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0, square=True, fmt='.3f', ax=ax)
-            ax.set_title('评估要素相关性矩阵')
+            ax.set_title('评估要素相关性矩阵', fontproperties=font_prop)
+            # 设置坐标轴标签字体
+            for tick in ax.get_xticklabels():
+                tick.set_fontproperties(font_prop)
+            for tick in ax.get_yticklabels():
+                tick.set_fontproperties(font_prop)
             st.pyplot(fig)
+        
         st.subheader("💪 要素影响力分析")
         influence_data = []
         for i, col in enumerate(used_columns):
@@ -282,17 +350,24 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
         influence_df = pd.DataFrame(influence_data)
         influence_df = influence_df.sort_values('影响力得分', ascending=False)
         st.dataframe(influence_df.round(4))
+        
         fig, ax = plt.subplots(figsize=(12, 6))
         colors = ['green' if corr == '正相关' else 'red' for corr in influence_df['相关性']]
         bars = ax.bar(influence_df['要素名称'], influence_df['影响力得分'], color=colors, alpha=0.7)
-        ax.set_title('各要素影响力得分 (绿色:正相关, 红色:负相关)')
-        ax.set_ylabel('影响力得分 (权重 × 标准差)')
+        ax.set_title('各要素影响力得分 (绿色:正相关, 红色:负相关)', fontproperties=font_prop)
+        ax.set_ylabel('影响力得分 (权重 × 标准差)', fontproperties=font_prop)
         ax.tick_params(axis='x', rotation=45)
+        # 设置坐标轴标签字体
+        for tick in ax.get_xticklabels():
+            tick.set_fontproperties(font_prop)
+        for tick in ax.get_yticklabels():
+            tick.set_fontproperties(font_prop)
         for bar in bars:
             height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.3f}', ha='center', va='bottom')
+            ax.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.3f}', ha='center', va='bottom', fontproperties=font_prop)
         plt.tight_layout()
         st.pyplot(fig)
+    
     st.subheader("💡 改进建议")
     max_emission_idx = df['carbon_emission'].idxmax()
     min_emission_idx = df['carbon_emission'].idxmin()
@@ -308,6 +383,7 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
     
     **🎯 改进潜力**: 如果将最高排放流程优化到最佳水平，可减少 {improvement_potential:.1f} kg CO2 排放
     """)
+    
     if len(used_columns) > 0:
         st.subheader("🔧 具体改进建议")
         weight_importance = list(zip(used_columns, weights))
@@ -326,6 +402,7 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
         st.markdown("**优先改进建议** (按权重排序):")
         for suggestion in suggestions:
             st.markdown(suggestion)
+    
     if len(df) > 1 and len(used_columns) > 1:
         st.subheader("📈 敏感性分析")
         sensitivity_data = []
@@ -345,6 +422,7 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
             sensitivity_df = sensitivity_df.sort_values('敏感性', ascending=False)
             st.write("**敏感性排序** (数值越大表示该要素对碳排放影响越大):")
             st.dataframe(sensitivity_df.round(4))
+    
     st.subheader("📥 结果导出")
     col1, col2 = st.columns(2)
     with col1:
@@ -382,8 +460,20 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
 
 def main():
     st.set_page_config(page_title="企业碳排放评估系统", layout="wide")
+    
+    # 设置中文字体
+    setup_chinese_font()
+    
     st.title("🌱 基于熵权法的企业碳排放评估系统")
     st.markdown("通过自定义评估要素，快速评估生产流程碳排放")
+    
+    # 字体状态显示
+    font_path = 'simhei.ttf'
+    if os.path.exists(font_path):
+        st.success("✅ 中文字体已加载，图表将正确显示中文")
+    else:
+        st.warning("⚠️ 未找到simhei.ttf字体文件，请确保字体文件在项目根目录")
+    
     assessment = CarbonEmissionAssessment()
     st.header("🎯 评估模式选择")
     assessment_mode = st.radio(
@@ -414,9 +504,11 @@ def main():
         gas_factor = st.sidebar.number_input("天然气排放因子 (kg CO2/m³)", value=2.162, step=0.01)
         assessment.emission_factors['electricity'] = electricity_factor
         assessment.emission_factors['natural_gas'] = gas_factor
+    
     st.header("📊 数据输入")
     input_method = st.radio("选择数据输入方式:", ["使用示例数据", "批量上传CSV文件", "手动输入多个流程"])
     df = None
+    
     if input_method == "使用示例数据":
         if assessment_mode == "自定义模式 (用户定义要素)":
             def create_sample_data_with_custom_factors(custom_columns, correlation_settings):
@@ -429,6 +521,7 @@ def main():
                         base_values = [150 - i*20 + np.random.normal(0, 10) for i in range(5)]
                     sample_data[col] = [max(10, val) for val in base_values]
                 return pd.DataFrame(sample_data)
+            
             df = create_sample_data_with_custom_factors(custom_columns, correlation_settings)
             st.subheader("📋 自定义示例数据")
             st.dataframe(df.round(2))
@@ -453,6 +546,7 @@ def main():
             df = pd.DataFrame(sample_data)
             st.subheader("📋 预设示例数据")
             st.dataframe(df)
+    
     elif input_method == "批量上传CSV文件":
         uploaded_file = st.file_uploader("选择CSV文件", type=['csv'])
         if uploaded_file is not None:
@@ -462,8 +556,10 @@ def main():
                 st.dataframe(df)
             except Exception as e:
                 st.error(f"文件读取错误: {e}")
+    
     else:
         df = manual_input_table_interface(assessment, assessment_mode, custom_columns, correlation_settings)
+    
     if df is not None and not df.empty:
         if st.button("🚀 开始分析"):
             if assessment_mode == "自定义模式 (用户定义要素)":
@@ -471,11 +567,13 @@ def main():
                     df, custom_columns, correlation_settings)
             else:
                 analyzed_df, weights, details_list, used_columns = assessment.assess_multiple_processes(df)
+            
             if analyzed_df is not None:
                 display_results(analyzed_df, weights, details_list, used_columns,
                               assessment,
                               custom_factors if assessment_mode == "自定义模式 (用户定义要素)" else None,
                               correlation_settings if assessment_mode == "自定义模式 (用户定义要素)" else None)
+    
     with st.expander("📖 使用说明"):
         st.markdown("""
         ### 系统功能
@@ -500,6 +598,21 @@ def main():
         process_name,electricity_kwh,electricity_cost,natural_gas_m3,fuel_cost,operation_hours
         流程A,120,78,25,75,10
         流程B,85,55,15,45,6
+        ```
+        
+        ### 字体文件配置说明
+        为了在Streamlit Cloud上正确显示中文：
+        1. 将 `simhei.ttf` 字体文件放在项目根目录
+        2. 在 `requirements.txt` 中添加必要的依赖
+        3. 系统会自动检测并加载字体文件
+        
+        ### requirements.txt 示例
+        ```
+        streamlit
+        pandas
+        numpy
+        matplotlib
+        seaborn
         ```
         """)
 
