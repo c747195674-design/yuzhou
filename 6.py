@@ -619,46 +619,6 @@ def main():
                               custom_factors if assessment_mode == "自定义模式 (用户定义要素)" else None,
                               correlation_settings if assessment_mode == "自定义模式 (用户定义要素)" else None)
     
-   # ========== 新增：排放因子数据库（最小化展开） ==========
-@st.cache_data
-def load_emission_db():
-    """
-    把Excel所有表读成DataFrame字典；
-    文件与5.py同目录即可，文件名保持：碳排放参数数据库_2025-09-26.xlsx
-    """
-    db_path = "碳排放参数数据库_2025-09-26.xlsx"
-    if not os.path.isfile(db_path):
-        return {}
-    try:
-        xls = pd.ExcelFile(db_path)
-        tables = {}
-        for sheet in xls.sheet_names:
-            df = pd.read_excel(xls, sheet_name=sheet)
-            # 去掉空行空列
-            df = df.dropna(how="all").reset_index(drop=True)
-            tables[sheet] = df
-        return tables
-    except Exception as e:
-        st.error(f"读取排放因子数据库失败：{e}")
-        return {}
-
-# 侧边栏最小化容器
-with st.sidebar.expander("📚 排放因子数据库", expanded=False):
-    db = load_emission_db()
-    if db:
-        sel = st.selectbox("选择表格", list(db.keys()))
-        st.dataframe(db[sel])
-        csv = db[sel].to_csv(index=False).encode("utf-8-sig")
-        st.download_button(
-            label=f"⬇️ 下载 {sel}.csv",
-            data=csv,
-            file_name=f"{sel}.csv",
-            mime="text/csv"
-        )
-    else:
-        st.info("请将数据库文件放在与主程序同级目录，并命名为：\n`碳排放参数数据库_2025-09-26.xlsx`")
-# ========== 新增结束 ==========
-    
     with st.expander("📖 使用说明"):
         st.markdown("""
         ### 系统功能
@@ -703,6 +663,7 @@ with st.sidebar.expander("📚 排放因子数据库", expanded=False):
 
 if __name__ == "__main__":
     main()
+
 
 
 
