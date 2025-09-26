@@ -45,7 +45,7 @@ def get_chinese_font_prop():
 class CarbonEmissionAssessment:
     def __init__(self):
         self.emission_factors = {
-            'electricity': 0.5810,
+            '用电量': 0.5810,
             'natural_gas': 2.162,
             'coal': 2.493,
             'diesel': 2.674,
@@ -663,3 +663,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
