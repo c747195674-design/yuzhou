@@ -45,7 +45,7 @@ def get_chinese_font_prop():
 class CarbonEmissionAssessment:
     def __init__(self):
         self.emission_factors = {
-            'electricity': 0.5810,
+            'electricity': 0.6205,
             'natural_gas': 2.162,
             'coal': 2.493,
             'diesel': 2.674,
@@ -706,7 +706,7 @@ def main():
     if assessment_mode == "预设模式 (电费、燃料费等)":
         st.sidebar.header("⚙️ 系统参数设置")
         st.sidebar.subheader("排放因子调整")
-        electricity_factor = st.sidebar.number_input("电力排放因子 (kg CO2/kWh)", value=0.5810, step=0.01)
+        electricity_factor = st.sidebar.number_input("电力排放因子 (kg CO2/kWh)", value=0.6205, step=0.01)
         gas_factor = st.sidebar.number_input("天然气排放因子 (kg CO2/m³)", value=2.162, step=0.01)
         assessment.emission_factors['electricity'] = electricity_factor
         assessment.emission_factors['natural_gas'] = gas_factor
@@ -850,6 +850,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
