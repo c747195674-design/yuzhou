@@ -619,40 +619,50 @@ def display_results(df, weights, details_list, used_columns, assessment, custom_
         st.write("**弹性系数排序** (表示因素变化1%时排放量变化百分之几):")
         st.dataframe(sensitivity_df.round(4))
     
+    # 在 display_results 函数中，找到 "结果导出" 部分，替换为以下代码：
+
     st.subheader("📥 结果导出")
     col1, col2 = st.columns(2)
+    
     with col1:
-        if st.button("📊 下载详细分析结果"):
-            export_df = df.copy()
-            export_df['评估模式'] = "自定义模式" if custom_factors else "预设模式"
-            for i, col in enumerate(used_columns):
-                if col in export_df.columns:
-                    export_df[f'{col}_权重'] = weights[i]
-            result_csv = export_df.to_csv(index=False).encode('utf-8-sig')
-            st.download_button(
-                label="📥 下载CSV文件",
-                data=result_csv,
-                file_name=f"碳排放评估详细结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
+        # 准备详细分析结果数据
+        export_df = df.copy()
+        export_df['评估模式'] = "自定义模式" if custom_factors else "预设模式"
+        for i, col in enumerate(used_columns):
+            if col in export_df.columns:
+                export_df[f'{col}_权重'] = weights[i]
+        result_csv = export_df.to_csv(index=False).encode('utf-8-sig')
+        
+        # 使用 st.download_button 替代 st.button
+        st.download_button(
+            label="📊 下载详细分析结果",
+            data=result_csv,
+            file_name=f"碳排放评估详细结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            key="download_results"  # 添加唯一key
+        )
+    
     with col2:
-        if st.button("📋 下载权重配置"):
-            config_data = []
-            for i, col in enumerate(used_columns):
-                config_data.append({
-                    '要素名称': col,
-                    '权重': weights[i],
-                    '相关性': correlation_settings.get(col, '正相关') if correlation_settings else '正相关',
-                    '排放因子': custom_factors.get(col, {}).get('emission_factor', '系统默认') if custom_factors else '系统默认'
-                })
-            config_df = pd.DataFrame(config_data)
-            config_csv = config_df.to_csv(index=False).encode('utf-8-sig')
-            st.download_button(
-                label="📥 下载权重配置",
-                data=config_csv,
-                file_name=f"评估权重配置_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
+        # 准备权重配置数据
+        config_data = []
+        for i, col in enumerate(used_columns):
+            config_data.append({
+                '要素名称': col,
+                '权重': weights[i],
+                '相关性': correlation_settings.get(col, '正相关') if correlation_settings else '正相关',
+                '排放因子': custom_factors.get(col, {}).get('emission_factor', '系统默认') if custom_factors else '系统默认'
+            })
+        config_df = pd.DataFrame(config_data)
+        config_csv = config_df.to_csv(index=False).encode('utf-8-sig')
+        
+        # 使用 st.download_button 替代 st.button
+        st.download_button(
+            label="📋 下载权重配置",
+            data=config_csv,
+            file_name=f"评估权重配置_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            key="download_config"  # 添加唯一key
+        )
 
 def main():
     st.set_page_config(page_title="企业碳排放评估系统", layout="wide")
@@ -757,18 +767,43 @@ def main():
         df = manual_input_table_interface(assessment, assessment_mode, custom_columns, correlation_settings)
     
     if df is not None and not df.empty:
-        if st.button("🚀 开始分析"):
+        # 使用 session_state 存储中间变量，避免 rerun 后丢失
+        if 'analyzed' not in st.session_state:
+            st.session_state['analyzed'] = False
+
+        # 开始分析按钮 —— 点击后把结果写入 session_state
+        if st.button("🚀 开始分析", key="start_analysis"):
             if assessment_mode == "自定义模式 (用户定义要素)":
                 analyzed_df, weights, details_list, used_columns = assessment.assess_multiple_processes(
                     df, custom_columns, correlation_settings)
             else:
                 analyzed_df, weights, details_list, used_columns = assessment.assess_multiple_processes(df)
-            
+
             if analyzed_df is not None:
-                display_results(analyzed_df, weights, details_list, used_columns,
-                              assessment,
-                              custom_factors if assessment_mode == "自定义模式 (用户定义要素)" else None,
-                              correlation_settings if assessment_mode == "自定义模式 (用户定义要素)" else None)
+                # 将结果持久化到 session_state（可序列化的对象）
+                st.session_state['analyzed'] = True
+                st.session_state['analyzed_df'] = analyzed_df
+                st.session_state['analyzed_weights'] = weights
+                st.session_state['analyzed_details'] = details_list
+                st.session_state['analyzed_used_columns'] = used_columns
+                # 保存当前模式与配置，便于 display 和下载使用
+                st.session_state['assessment_mode'] = assessment_mode
+                st.session_state['custom_factors'] = custom_factors if assessment_mode == "自定义模式 (用户定义要素)" else None
+                st.session_state['correlation_settings'] = correlation_settings if assessment_mode == "自定义模式 (用户定义要素)" else None
+
+        # 如果 session_state 表示此前已经分析过（或刚刚分析完），使用持久化结果渲染界面
+        if st.session_state.get('analyzed', False):
+            # 从 session_state 恢复
+            analyzed_df = st.session_state['analyzed_df']
+            weights = st.session_state['analyzed_weights']
+            details_list = st.session_state['analyzed_details']
+            used_columns = st.session_state['analyzed_used_columns']
+            display_results(
+                analyzed_df, weights, details_list, used_columns,
+                assessment,
+                st.session_state.get('custom_factors', None),
+                st.session_state.get('correlation_settings', None)
+            )
     
   
     with st.expander("📖 使用说明"):
@@ -815,5 +850,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
